@@ -1,0 +1,345 @@
+```html
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portrait Halftone</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #111;
+        color: white;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 20px;
+      }
+
+      h1 {
+        margin: 5px 0;
+        font-size: 25px;
+      }
+
+      p {
+        color: #aaa;
+        margin-bottom: 20px;
+      }
+
+      .panel {
+        max-width: 650px;
+        margin: auto;
+      }
+
+      input[type="file"] {
+        width: 100%;
+        padding: 12px;
+        background: #222;
+        color: white;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+
+      .control {
+        margin: 12px 0;
+        text-align: left;
+      }
+
+      label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        font-size: 14px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+      }
+
+      button {
+        border: 0;
+        padding: 11px 18px;
+        margin: 8px 4px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      canvas {
+        display: block;
+        margin: 25px auto;
+        max-width: 95%;
+        height: auto;
+        background: white;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>PORTRAIT HALFTONE</h1>
+    <p>Foto kamu diubah menjadi ribuan titik kecil.</p>
+
+    <div class="panel">
+      <input type="file" id="file" accept="image/*" />
+
+      <div class="control">
+        <label>
+          Ukuran Titik
+          <span id="sizeText">3</span>
+        </label>
+
+        <input type="range" id="size" min="1" max="8" step="0.5" value="3" />
+      </div>
+
+      <div class="control">
+        <label>
+          Kekuatan Hitam
+          <span id="blackText">1.8</span>
+        </label>
+
+        <input
+          type="range"
+          id="black"
+          min="0.5"
+          max="3"
+          step="0.1"
+          value="1.8"
+        />
+      </div>
+
+      <div class="control">
+        <label>
+          Contrast
+          <span id="contrastText">1.35</span>
+        </label>
+
+        <input
+          type="range"
+          id="contrast"
+          min="0.5"
+          max="2.5"
+          step="0.05"
+          value="1.35"
+        />
+      </div>
+
+      <button onclick="downloadImage()">Simpan Gambar</button>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+      const fileInput = document.getElementById("file");
+
+      const canvas = document.getElementById("canvas");
+
+      const ctx = canvas.getContext("2d");
+
+      const sizeSlider = document.getElementById("size");
+
+      const blackSlider = document.getElementById("black");
+
+      const contrastSlider = document.getElementById("contrast");
+
+      const sizeText = document.getElementById("sizeText");
+
+      const blackText = document.getElementById("blackText");
+
+      const contrastText = document.getElementById("contrastText");
+
+      let image = null;
+
+      // ==============================
+      // PILIH FOTO
+      // ==============================
+
+      fileInput.addEventListener("change", function () {
+        const file = this.files[0];
+
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          const img = new Image();
+
+          img.onload = function () {
+            image = img;
+
+            render();
+          };
+
+          img.src = e.target.result;
+        };
+
+        reader.readAsDataURL(file);
+      });
+
+      // ==============================
+      // SLIDER
+      // ==============================
+
+      sizeSlider.oninput = function () {
+        sizeText.textContent = this.value;
+
+        render();
+      };
+
+      blackSlider.oninput = function () {
+        blackText.textContent = this.value;
+
+        render();
+      };
+
+      contrastSlider.oninput = function () {
+        contrastText.textContent = this.value;
+
+        render();
+      };
+
+      // ==============================
+      // RENDER
+      // ==============================
+
+      function render() {
+        if (!image) return;
+
+        // Ukuran maksimal
+        const MAX = 900;
+
+        let w = image.width;
+        let h = image.height;
+
+        if (w > MAX) {
+          h = Math.round((h * MAX) / w);
+
+          w = MAX;
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+
+        // ==============================
+        // CANVAS FOTO ASLI
+        // ==============================
+
+        const source = document.createElement("canvas");
+
+        source.width = w;
+        source.height = h;
+
+        const sctx = source.getContext("2d");
+
+        sctx.drawImage(image, 0, 0, w, h);
+
+        const pixels = sctx.getImageData(0, 0, w, h).data;
+
+        // Background putih
+        ctx.fillStyle = "#ffffff";
+
+        ctx.fillRect(0, 0, w, h);
+
+        const gap = parseFloat(sizeSlider.value);
+
+        const strength = parseFloat(blackSlider.value);
+
+        const contrast = parseFloat(contrastSlider.value);
+
+        // ==============================
+        // TITIK PORTRAIT
+        // ==============================
+
+        for (let y = gap / 2; y < h; y += gap) {
+          for (let x = gap / 2; x < w; x += gap) {
+            const px = Math.floor(x);
+
+            const py = Math.floor(y);
+
+            const index = (py * w + px) * 4;
+
+            let r = pixels[index];
+
+            let g = pixels[index + 1];
+
+            let b = pixels[index + 2];
+
+            // ==========================
+            // GRAYSCALE
+            // ==========================
+
+            let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            // ==========================
+            // CONTRAST
+            // ==========================
+
+            gray = (gray - 128) * contrast + 128;
+
+            gray = Math.max(0, Math.min(255, gray));
+
+            // ==========================
+            // DARKNESS
+            // ==========================
+
+            let darkness = 1 - gray / 255;
+
+            darkness = Math.pow(darkness, strength);
+
+            // Hilangkan titik
+            // pada area sangat terang
+            if (darkness < 0.025) {
+              continue;
+            }
+
+            // ==========================
+            // UKURAN TITIK
+            // ==========================
+
+            let radius = gap * 0.52 * darkness;
+
+            // sedikit variasi
+            // supaya tidak terlalu kaku
+            radius *= 0.92 + darkness * 0.15;
+
+            // ==========================
+            // GAMBAR TITIK
+            // ==========================
+
+            ctx.beginPath();
+
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+
+            ctx.fillStyle = "#000000";
+
+            ctx.fill();
+          }
+        }
+      }
+
+      // ==============================
+      // DOWNLOAD
+      // ==============================
+
+      function downloadImage() {
+        if (!image) {
+          alert("Pilih foto terlebih dahulu.");
+
+          return;
+        }
+
+        const link = document.createElement("a");
+
+        link.download = "portrait-halftone.png";
+
+        link.href = canvas.toDataURL("image/png");
+
+        link.click();
+      }
+    </script>
+  </body>
+</html>
+```
